@@ -1,0 +1,58 @@
+SARI-SARI POS
+=============
+
+HOW TO INSTALL (one time only)
+
+  1. Double-click "Install Sari-Sari POS".
+
+     If a blue window says "Windows protected your PC":
+     click "More info", then click "Run anyway".
+
+  2. Click OK. The POS opens.
+
+  3. A "Sari-Sari POS" icon is now on your Desktop.
+     After this you can delete this folder and the zip file.
+
+EVERY DAY
+
+  Double-click the "Sari-Sari POS" icon on your Desktop.
+
+GOOD TO KNOW
+
+  - No internet needed.
+  - Your records are saved on THIS computer only.
+  - Make a backup once a week:
+      Settings > Download backup
+    then copy the file to a USB drive or your phone.
+  - To update: install a newer version the same way.
+    Your records stay safe.
+
+
+------------------------------------------------------------
+TAGALOG
+
+PAANO I-INSTALL (isang beses lang)
+
+  1. I-double-click ang "Install Sari-Sari POS".
+
+     Kung may lumabas na asul na "Windows protected your PC":
+     i-click ang "More info", tapos i-click ang "Run anyway".
+
+  2. I-click ang OK. Magbubukas ang POS.
+
+  3. May "Sari-Sari POS" icon na sa Desktop.
+     Puwede mo nang burahin ang folder na ito at ang zip file.
+
+ARAW-ARAW
+
+  I-double-click lang ang "Sari-Sari POS" icon sa Desktop.
+
+DAPAT MONG MALAMAN
+
+  - Hindi kailangan ng internet.
+  - Sa computer na ito LANG naka-save ang records mo.
+  - Mag-backup isang beses kada linggo:
+      Settings > Download backup
+    tapos i-copy ang file sa USB o sa phone.
+  - Para mag-update: i-install ang bagong version sa parehong paraan.
+    Ligtas pa rin ang records mo.
