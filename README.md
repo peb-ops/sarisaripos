@@ -17,6 +17,8 @@ The zip includes `READ ME FIRST.txt` with these steps in English and Tagalog.
 
 How it works: the installer copies the app to `%LOCALAPPDATA%\SariSariPOS` and creates the icons. The icon starts a tiny local web server using Windows' built-in PowerShell (`launcher/system/server.ps1`, localhost only), then opens the app in an Edge window. To update, install a newer zip the same way. Sales records live in the browser, so updating never erases them.
 
+**Updates:** when the POS icon is opened, the launcher checks this repo's latest GitHub Release, at most once a day and only if the PC is online. If there's a newer version, it asks "Update now?". **Yes** downloads the zip, verifies its SHA-256, installs it, and reopens the POS. **No** asks again the next day. Offline, it skips the check silently. Installs of v0.1.0 predate this feature, so they need one manual install of a newer release.
+
 **Back up regularly** (Settings → Download backup). The data exists only on that computer.
 
 ## Make a release

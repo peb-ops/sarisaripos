@@ -2,6 +2,9 @@
 # copies the app to %LOCALAPPDATA%\SariSariPOS, adds Desktop and Start menu
 # icons, then opens it. No admin rights or internet needed. Store data lives
 # in the browser, so reinstalling or updating never erases sales records.
+# -Quiet: used by update.ps1; skips the "installed" pop-up.
+param([switch]$Quiet)
+
 $ErrorActionPreference = 'Stop'
 $source = Split-Path $PSScriptRoot -Parent
 $dest = Join-Path $env:LOCALAPPDATA 'SariSariPOS'
@@ -35,9 +38,11 @@ try {
     $link.Save()
   }
 
-  [System.Windows.MessageBox]::Show(
-    "Sari-Sari POS is installed!`n`nFrom now on, open it with the 'Sari-Sari POS' icon on your Desktop.`n`nClick OK to open it now.",
-    'Sari-Sari POS', 'OK', 'Information') | Out-Null
+  if (-not $Quiet) {
+    [System.Windows.MessageBox]::Show(
+      "Sari-Sari POS is installed!`n`nFrom now on, open it with the 'Sari-Sari POS' icon on your Desktop.`n`nClick OK to open it now.",
+      'Sari-Sari POS', 'OK', 'Information') | Out-Null
+  }
 
   & (Join-Path $dest 'system\launch.ps1')
 } catch {
