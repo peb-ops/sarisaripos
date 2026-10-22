@@ -8,7 +8,7 @@ Features: tingi and bulk selling (stick/pack, ¼ kg/1 kg), cash/GCash/utang chec
 
 The store computer needs **nothing installed**: no Node.js, no admin rights, no internet.
 
-1. Get the zip `SariSariPOS-v<version>.zip` (see *Make the install zip* below), e.g. on a USB drive.
+1. Download `SariSariPOS-v<version>.zip` from the [latest release](https://github.com/peb-ops/sarisaripos/releases/latest) (or copy it over on a USB drive).
 2. Right-click the zip → **Extract All…**
 3. Open the extracted folder and double-click **Install Sari-Sari POS**. If Windows shows "Windows protected your PC", click **More info → Run anyway**.
 4. From then on, use the **Sari-Sari POS** icon on the Desktop (also in the Start menu).
@@ -19,16 +19,13 @@ How it works: the installer copies the app to `%LOCALAPPDATA%\SariSariPOS` and c
 
 **Back up regularly** (Settings → Download backup). The data exists only on that computer.
 
-## Make the install zip
+## Make a release
 
-On a development machine with Node.js 20+:
+On GitHub: **Actions** tab → **Release** → **Run workflow** → type the new version (e.g. `0.2.0`) → **Run workflow**.
 
-```sh
-npm install
-npm run package    # → release/SariSariPOS-v<version>.zip
-```
+GitHub runs the tests, builds `SariSariPOS-v0.2.0.zip`, and publishes it under **Releases** with install steps and a list of changes. The newest release is always at `https://github.com/peb-ops/sarisaripos/releases/latest`. The version shows at the bottom of the app's Settings screen.
 
-Attach the zip to a GitHub Release, or copy it to a USB drive.
+To build the zip locally instead (Node.js 20+): `npm install && npm run package` creates `release/SariSariPOS-v<version>.zip`.
 
 ## Develop
 

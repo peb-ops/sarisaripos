@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+// The release workflow passes the version typed into GitHub's "Run workflow" box.
+const version = process.env.POS_VERSION || JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
 const releaseDir = join(root, 'release');
 const out = join(releaseDir, 'SariSariPOS');
 const zip = join(releaseDir, `SariSariPOS-v${version}.zip`);

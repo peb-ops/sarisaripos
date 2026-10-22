@@ -1,0 +1,58 @@
+name: Release
+
+# Actions tab → "Release" → Run workflow → enter a version (e.g. 0.2.0).
+# Tests, builds the install zip and publishes it as a GitHub Release.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number, e.g. 0.2.0 (no "v")'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      POS_VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check version
+        run: |
+          if [[ ! "$POS_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must look like 1.2.3 (got '$POS_VERSION')"
+            exit 1
+          fi
+          if gh release view "v$POS_VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release v$POS_VERSION already exists. Pick a higher version."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build install zip
+        run: npm run package
+
+      - name: Publish release
+        run: |
+          gh release create "v$POS_VERSION" "release/SariSariPOS-v$POS_VERSION.zip" \
+            --target "$GITHUB_SHA" \
+            --title "Sari-Sari POS v$POS_VERSION" \
+            --notes-file .github/release-notes.md \
+            --generate-notes

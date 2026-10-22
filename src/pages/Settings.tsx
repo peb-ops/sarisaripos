@@ -133,6 +133,8 @@ export default function Settings() {
             ))}
           </dl>
         </Section>
+
+        <p className="text-center text-xs text-stone-400">Sari-Sari POS version {__APP_VERSION__}</p>
       </div>
 
       {pending && (
