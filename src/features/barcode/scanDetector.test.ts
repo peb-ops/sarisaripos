@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { parseFlagParam } from '../../lib/featureFlags';
+import { getFlags, setFlag } from '../../lib/featureFlags';
+import { resetDb } from '../../test/helpers';
 import { createScanDetector } from './scanDetector';
 
 function type(detect: ReturnType<typeof createScanDetector>, text: string, start: number, gapMs: number) {
@@ -36,10 +37,13 @@ describe('scan detector', () => {
   });
 });
 
-describe('feature flag URL param', () => {
-  it('parses on/off and ignores unknown flags', () => {
-    expect(parseFlagParam('?flags=barcode')).toEqual({ barcode: true });
-    expect(parseFlagParam('?flags=-barcode,unknown')).toEqual({ barcode: false });
-    expect(parseFlagParam('')).toEqual({});
+describe('barcode setting', () => {
+  it('is off by default and can be switched on and off', async () => {
+    await resetDb();
+    expect((await getFlags()).barcode).toBe(false);
+    await setFlag('barcode', true);
+    expect((await getFlags()).barcode).toBe(true);
+    await setFlag('barcode', false);
+    expect((await getFlags()).barcode).toBe(false);
   });
 });

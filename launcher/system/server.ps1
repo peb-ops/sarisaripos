@@ -21,6 +21,49 @@ $mime = @{
 # Files that must always be re-checked so app updates show up.
 $noCache = @('index.html', 'sw.js', 'registerSW.js', 'manifest.webmanifest')
 
+$backupDir = Join-Path (Split-Path $root -Parent) 'backups'
+$keepDays = 30
+
+function Send-Json($res, [int]$status, $value) {
+  $bytes = [Text.Encoding]::UTF8.GetBytes(($value | ConvertTo-Json -Compress))
+  $res.StatusCode = $status
+  $res.ContentType = 'application/json'
+  $res.ContentLength64 = $bytes.Length
+  $res.OutputStream.Write($bytes, 0, $bytes.Length)
+}
+
+# POST /api/backup: the app sends a full backup after each change; keep one
+# file per day (the latest) for $keepDays days. The custom header can't be
+# sent by other websites without a CORS preflight, which this server never
+# approves, so only the POS itself can write here.
+function Save-Backup($ctx) {
+  $req = $ctx.Request
+  $res = $ctx.Response
+  $origin = $req.Headers['Origin']
+  if ($req.HttpMethod -ne 'POST' -or $req.Headers['X-SariSari-POS'] -ne '1' -or ($origin -and $origin -ne "http://localhost:$Port")) {
+    return Send-Json $res 403 @{ error = 'forbidden' }
+  }
+
+  New-Item -ItemType Directory -Force -Path $backupDir | Out-Null
+  $tmp = Join-Path $backupDir 'incoming.tmp'
+  $file = [IO.File]::Create($tmp)
+  try { $req.InputStream.CopyTo($file) } finally { $file.Dispose() }
+
+  $expected = '{"app":"sari-sari-pos"'
+  $head = New-Object byte[] $expected.Length
+  $file = [IO.File]::OpenRead($tmp)
+  try { $read = $file.Read($head, 0, $head.Length) } finally { $file.Dispose() }
+  if ([Text.Encoding]::ASCII.GetString($head, 0, $read) -ne $expected) {
+    Remove-Item $tmp -Force
+    return Send-Json $res 400 @{ error = 'not a Sari-Sari POS backup' }
+  }
+
+  $name = 'auto-' + (Get-Date).ToString('yyyy-MM-dd') + '.json'
+  Move-Item $tmp (Join-Path $backupDir $name) -Force
+  Get-ChildItem $backupDir -Filter 'auto-*.json' | Sort-Object Name -Descending | Select-Object -Skip $keepDays | Remove-Item -Force
+  Send-Json $res 200 @{ folder = $backupDir; file = $name }
+}
+
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$Port/")
 $listener.Start()
@@ -29,6 +72,10 @@ while ($listener.IsListening) {
   $ctx = $listener.GetContext()
   $res = $ctx.Response
   try {
+    if ($ctx.Request.Url.AbsolutePath -eq '/api/backup') {
+      Save-Backup $ctx
+      continue # the finally block still closes the response
+    }
     $rel = [Uri]::UnescapeDataString($ctx.Request.Url.AbsolutePath).TrimStart('/')
     if ($rel -eq '') { $rel = 'index.html' }
     $path = [IO.Path]::GetFullPath((Join-Path $root $rel))

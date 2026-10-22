@@ -1,12 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Download, HardDrive, Keyboard, PackageOpen, Store, Upload } from 'lucide-react';
+import { Download, HardDrive, Keyboard, PackageOpen, ScanBarcode, Store, Upload } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ConfirmDialog } from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { Button, Card, Field, Input, PageHeader, errorMessage } from '../components/ui';
 import { db } from '../db/schema';
 import { seedDemoData } from '../db/seed';
-import { useSetting } from '../hooks';
+import { useAutoBackupStatus, useFlag, useSetting } from '../hooks';
+import { setFlag } from '../lib/featureFlags';
 import { downloadJson, exportBackup, parseBackup, restoreBackup, type Backup } from '../lib/backup';
 import { daysAgo, formatDate, formatDateTime } from '../lib/format';
 import { setSetting } from '../lib/settings';
@@ -19,6 +20,8 @@ export default function Settings() {
   const [name, setName] = useState(storeName);
   const [pending, setPending] = useState<Backup | null>(null);
   const [persisted, setPersisted] = useState<boolean | null>(null);
+  const auto = useAutoBackupStatus();
+  const barcodeOn = useFlag('barcode');
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setName(storeName), [storeName]);
@@ -60,9 +63,20 @@ export default function Settings() {
 
         <Section icon={<HardDrive size={20} />} title="Backup">
           <p className="mb-3 text-sm text-stone-600">
-            Everything is saved only on this computer. Download a backup regularly so you don't lose your records if
-            the computer breaks.
+            Everything is saved only on this computer. Download a backup regularly and keep it somewhere else (USB,
+            phone) so you don't lose your records if the computer breaks.
           </p>
+          {auto.available && (
+            <p className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+              <strong>Automatic backup is on.</strong> A copy is saved on this computer after every change
+              {auto.savedAt ? ` (latest at ${formatDateTime(auto.savedAt)})` : ''}, and before every update.
+              {auto.folder && (
+                <span className="mt-1 block text-xs break-all text-emerald-800">
+                  Folder: <code>{auto.folder}</code>
+                </span>
+              )}
+            </p>
+          )}
           <p
             className={`mb-4 text-sm font-medium ${backupAge === null || backupAge >= 7 ? 'text-amber-700' : 'text-emerald-700'}`}
           >
@@ -99,6 +113,26 @@ export default function Settings() {
               Tip: install this app (the install icon in the browser's address bar) so the browser keeps its data safe.
             </p>
           )}
+        </Section>
+
+        <Section icon={<ScanBarcode size={20} />} title="Barcode scanner">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              role="switch"
+              checked={barcodeOn}
+              onChange={async (e) => {
+                await setFlag('barcode', e.target.checked);
+                toast(e.target.checked ? 'Barcode scanner turned on' : 'Barcode scanner turned off');
+              }}
+              className="mt-1 size-5 accent-red-700"
+            />
+            <span className="text-sm text-stone-600">
+              <span className="block font-semibold text-stone-800">Use a barcode scanner</span>
+              Turn this on if you have a USB or Bluetooth barcode scanner. Products get a Barcode field, and scanning an
+              item on the Sell screen adds it to the cart. No setup needed: plug in the scanner and scan.
+            </span>
+          </label>
         </Section>
 
         {productCount === 0 && (

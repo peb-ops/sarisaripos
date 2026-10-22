@@ -17,9 +17,12 @@ The zip includes `READ ME FIRST.txt` with these steps in English and Tagalog.
 
 How it works: the installer copies the app to `%LOCALAPPDATA%\SariSariPOS` and creates the icons. The icon starts a tiny local web server using Windows' built-in PowerShell (`launcher/system/server.ps1`, localhost only), then opens the app in an Edge window. To update, install a newer zip the same way. Sales records live in the browser, so updating never erases them.
 
-**Updates:** when the POS icon is opened, the launcher checks this repo's latest GitHub Release, at most once a day and only if the PC is online. If there's a newer version, it asks "Update now?". **Yes** downloads the zip, verifies its SHA-256, installs it, and reopens the POS. **No** asks again the next day. Offline, it skips the check silently. Installs of v0.1.0 predate this feature, so they need one manual install of a newer release.
+**Updates:** when the POS icon is opened, the launcher checks this repo's latest GitHub Release, at most once a day and only if the PC is online. If there's a newer version, it asks "Update now?". **Yes** backs up the records first (see below), downloads the zip, verifies its SHA-256, installs it, and reopens the POS. **No** asks again the next day. Offline, it skips the check silently. Installs of v0.1.0 predate this feature, so they need one manual install of a newer release.
 
-**Back up regularly** (Settings → Download backup). The data exists only on that computer.
+**Backups** (all in `%LOCALAPPDATA%\SariSariPOS\backups\`):
+- **Automatic:** a few seconds after every change (and at startup), the app saves a full backup as `auto-YYYY-MM-DD.json`. The latest copy of each day is kept for 30 days. Restore one with Settings → Restore from backup.
+- **Before every update:** `before-update-v<version>-<time>\` holds a copy of the latest automatic backup plus a raw copy of Edge's storage for the POS. The last 5 are kept. If records exist but can't be backed up, the update is cancelled.
+- **Off the computer:** these files are on the same disk as the app. Use Settings → Download backup now and then, and copy the file to a USB drive or phone.
 
 ## Make a release
 
@@ -40,12 +43,10 @@ npm run preview    # serve the build at http://localhost:4173
 
 Each address (port) keeps its own data in the browser. The installed app uses port 4173, the same as `npm run preview`.
 
-## Barcode scanning (hidden)
+## Barcode scanning
 
-Barcode support is built but turned off until the store has a scanner. USB and Bluetooth scanners act as keyboards, so no drivers are needed.
+Off by default. Turn it on in **Settings → Barcode scanner**. USB and Bluetooth scanners act as keyboards, so no drivers are needed.
 
-- Turn on: open the app once with `?flags=barcode` (e.g. `http://localhost:4173/?flags=barcode`). The setting is remembered.
-- Turn off: `?flags=-barcode`.
 - When on, the product form shows a Barcode field. On the Sell screen, scanning adds the product, and an unknown code asks which product it belongs to.
 - Test without a scanner: type a code very quickly and press Enter. Pasting with a text-expander tool also works.
 
