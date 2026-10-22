@@ -1,5 +1,6 @@
 import { Archive, PackagePlus, Pencil, Search, TriangleAlert, Warehouse } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { ExportMenu } from '../components/ExportMenu';
 import { ProductFormDialog } from '../components/ProductFormDialog';
 import { ProductThumb } from '../components/ProductThumb';
 import { StockDialog } from '../components/StockDialog';
@@ -8,6 +9,7 @@ import { Button, Card, Chip, PageHeader } from '../components/ui';
 import type { Product } from '../db/schema';
 import { seedDemoData } from '../db/seed';
 import { useProducts } from '../hooks';
+import { exportCsv, exportExcel } from '../lib/exportFiles';
 import { isLowStock } from '../lib/inventory';
 import { formatPeso } from '../lib/money';
 
@@ -36,6 +38,12 @@ export default function Products() {
   return (
     <div className="h-full overflow-y-auto p-6">
       <PageHeader title="Products" subtitle={`${all.length - archivedCount} items for sale`}>
+        <ExportMenu
+          items={[
+            { label: 'Products & stock (Excel)', format: 'excel', run: () => exportExcel('products') },
+            { label: 'Products & stock (CSV)', format: 'csv', run: () => exportCsv('products') },
+          ]}
+        />
         <Button variant="primary" onClick={() => setEditing('new')}>
           <PackagePlus size={18} /> Add product
         </Button>

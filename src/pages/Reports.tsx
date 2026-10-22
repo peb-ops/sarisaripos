@@ -2,12 +2,14 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { Ban, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipProps } from 'recharts';
+import { ExportMenu } from '../components/ExportMenu';
 import { ConfirmDialog } from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { Button, Card, Chip, PageHeader, errorMessage } from '../components/ui';
 import { db, type PaymentType, type Sale } from '../db/schema';
 import { useBalances, useCustomers, useProducts } from '../hooks';
 import { formatDateTime, itemsSummary } from '../lib/format';
+import { exportCsv, exportExcel } from '../lib/exportFiles';
 import { formatPeso } from '../lib/money';
 import { bestSellers, dailySeries, lowStock, rangeStart, summarize, type DayPoint, type Range } from '../lib/reports';
 import { voidSale } from '../lib/sales';
@@ -43,6 +45,8 @@ export default function Reports() {
   const owed = [...balances.values()].reduce((s, b) => s + Math.max(0, b), 0);
   const customerName = new Map(customers.map((c) => [c.id!, c.name]));
   const productUnit = new Map(products.map((p) => [p.id!, p.baseUnit]));
+  const rangeLabel = RANGES.find((r) => r.id === range)!.label.toLowerCase();
+  const exportOpts = { since: start, label: rangeLabel.replace(/\s+/g, '-') };
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -52,6 +56,17 @@ export default function Reports() {
             {r.label}
           </Chip>
         ))}
+        <ExportMenu
+          items={[
+            { label: `Sales: ${rangeLabel} (Excel)`, format: 'excel', run: () => exportExcel('sales', exportOpts) },
+            { label: `Sales: ${rangeLabel} (CSV)`, format: 'csv', run: () => exportCsv('sales', { ...exportOpts, table: 'Sales' }) },
+            {
+              label: `Items sold: ${rangeLabel} (CSV)`,
+              format: 'csv',
+              run: () => exportCsv('sales', { ...exportOpts, table: 'Sale items' }),
+            },
+          ]}
+        />
       </PageHeader>
 
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">

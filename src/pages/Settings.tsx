@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Download, HardDrive, Keyboard, PackageOpen, ScanBarcode, Store, Upload } from 'lucide-react';
+import { Download, FileSpreadsheet, FolderArchive, HardDrive, Keyboard, PackageOpen, ScanBarcode, Store, Upload } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ConfirmDialog } from '../components/Modal';
 import { useToast } from '../components/Toast';
@@ -7,6 +7,7 @@ import { Button, Card, Field, Input, PageHeader, errorMessage } from '../compone
 import { db } from '../db/schema';
 import { seedDemoData } from '../db/seed';
 import { useAutoBackupStatus, useFlag, useSetting } from '../hooks';
+import { exportCsv, exportExcel } from '../lib/exportFiles';
 import { setFlag } from '../lib/featureFlags';
 import { downloadJson, exportBackup, parseBackup, restoreBackup, type Backup } from '../lib/backup';
 import { daysAgo, formatDate, formatDateTime } from '../lib/format';
@@ -22,6 +23,19 @@ export default function Settings() {
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const auto = useAutoBackupStatus();
   const barcodeOn = useFlag('barcode');
+  const [exporting, setExporting] = useState(false);
+
+  async function runExport(run: () => Promise<void>) {
+    setExporting(true);
+    try {
+      await run();
+      toast('Exported: the file is in your Downloads folder');
+    } catch (err) {
+      toast(`Export failed: ${errorMessage(err)}`, 'error');
+    } finally {
+      setExporting(false);
+    }
+  }
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setName(storeName), [storeName]);
@@ -113,6 +127,21 @@ export default function Settings() {
               Tip: install this app (the install icon in the browser's address bar) so the browser keeps its data safe.
             </p>
           )}
+        </Section>
+
+        <Section icon={<FileSpreadsheet size={20} />} title="Export data">
+          <p className="mb-3 text-sm text-stone-600">
+            Download all records (products, sales, items sold, customers, utang) to open in Excel or Google Sheets.
+            Products, Reports and Utang also have their own Export button.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="primary" disabled={exporting} onClick={() => runExport(() => exportExcel('all'))}>
+              <FileSpreadsheet size={18} /> Export all (Excel)
+            </Button>
+            <Button disabled={exporting} onClick={() => runExport(() => exportCsv('all'))}>
+              <FolderArchive size={18} /> Export all (CSV files)
+            </Button>
+          </div>
         </Section>
 
         <Section icon={<ScanBarcode size={20} />} title="Barcode scanner">

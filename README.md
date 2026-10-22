@@ -43,6 +43,17 @@ npm run preview    # serve the build at http://localhost:4173
 
 Each address (port) keeps its own data in the browser. The installed app uses port 4173, the same as `npm run preview`.
 
+## Export to Excel / CSV
+
+Files are saved to the Downloads folder, and nothing is uploaded anywhere.
+
+- **Products** → Export: products and stock.
+- **Reports** → Export: sales for the selected range, as Excel (Sales and Items sold sheets) or CSV.
+- **Utang** → Export: who owes what, and the full utang history with running balances.
+- **Export all**: at the bottom of every Export menu, and in **Settings → Export data**. Gives one Excel file with every sheet (Products, Sales, Sale items, Customers, Utang history), or a zip with one CSV per sheet.
+
+Money is in pesos with a ₱ format in Excel. CSV files are UTF-8 with a byte-order mark, so ₱ and ñ show correctly when opened in Excel.
+
 ## Barcode scanning
 
 Off by default. Turn it on in **Settings → Barcode scanner**. USB and Bluetooth scanners act as keyboards, so no drivers are needed.

@@ -1,4 +1,5 @@
 import { db } from '../db/schema';
+import { downloadBlob } from './download';
 
 export class BackupError extends Error {}
 
@@ -48,11 +49,5 @@ export async function restoreBackup(backup: Backup): Promise<void> {
 }
 
 export function downloadJson(value: unknown, filename: string): void {
-  const blob = new Blob([JSON.stringify(value)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(new Blob([JSON.stringify(value)], { type: 'application/json' }), filename);
 }

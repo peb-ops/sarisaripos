@@ -2,11 +2,13 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { HandCoins, NotebookPen, Pencil, Search, UserPlus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { ExportMenu } from '../components/ExportMenu';
 import { Modal } from '../components/Modal';
 import { useToast } from '../components/Toast';
 import { Button, Card, ErrorText, Field, Input, PesoInput, errorMessage } from '../components/ui';
 import { db, type Customer, type LedgerType } from '../db/schema';
 import { useBalances, useCustomers } from '../hooks';
+import { exportCsv, exportExcel } from '../lib/exportFiles';
 import { formatDateTime, itemsSummary } from '../lib/format';
 import { recordPayment, saveCustomer, signedAmount } from '../lib/ledger';
 import { formatPeso, parsePeso, pesoInputValue } from '../lib/money';
@@ -33,9 +35,19 @@ export default function Utang() {
         <div className="space-y-3 border-b border-stone-200 p-4">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold">Utang</h1>
-            <Button size="sm" variant="primary" onClick={() => setAdding(true)}>
-              <UserPlus size={16} /> Add
-            </Button>
+            <div className="flex gap-2">
+              <ExportMenu
+                align="left"
+                items={[
+                  { label: 'Customers & utang (Excel)', format: 'excel', run: () => exportExcel('utang') },
+                  { label: 'Who owes what (CSV)', format: 'csv', run: () => exportCsv('utang', { table: 'Customers' }) },
+                  { label: 'Utang history (CSV)', format: 'csv', run: () => exportCsv('utang', { table: 'Utang history' }) },
+                ]}
+              />
+              <Button size="sm" variant="primary" onClick={() => setAdding(true)}>
+                <UserPlus size={16} /> Add
+              </Button>
+            </div>
           </div>
           <div className="rounded-lg bg-amber-50 px-3 py-2 text-amber-900">
             <div className="text-xs font-medium">Total owed to the store</div>
