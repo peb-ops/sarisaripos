@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db/schema';
 import { addCigarettes, cigarettes, resetDb } from '../test/helpers';
-import { adjustStock, restock, saveProduct, validateProduct } from './inventory';
+import { adjustStock, averageCost, restock, saveProduct, validateProduct } from './inventory';
 
 beforeEach(resetDb);
 
@@ -47,6 +47,23 @@ describe('inventory', () => {
     const p = (await db.products.get(id))!;
     expect(p.stock).toBe(50);
     expect(p.costPerBase).toBe(825);
+  });
+
+  it('averages the cost of stock on hand with the new batch', async () => {
+    const id = await addCigarettes(50, { costPerBase: 800 }); // 50 sticks at ₱8
+    await restock(id, 100, 90000); // 100 sticks at ₱9
+    expect((await db.products.get(id))!.costPerBase).toBeCloseTo(2600 / 3); // ≈ ₱8.67
+
+    // Cheaper batch pulls the average down.
+    await restock(id, 150, 105000); // 150 at ₱7 → (150 × 8.667 + 1050) / 300 ≈ ₱7.83
+    expect((await db.products.get(id))!.costPerBase).toBeCloseTo((150 * (2600 / 3) + 105000) / 300);
+  });
+
+  it('uses the new price when nothing (or less than nothing) was left', async () => {
+    const id = await addCigarettes(-5, { costPerBase: 800 });
+    await restock(id, 20, 19000);
+    expect((await db.products.get(id))!.costPerBase).toBe(950);
+    expect(averageCost(0, 800, 10, 9000)).toBe(900);
   });
 
   it('adjusts to a counted stock level', async () => {

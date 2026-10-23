@@ -233,7 +233,7 @@ export function ProductFormDialog({
         </fieldset>
 
         <div className="grid grid-cols-3 gap-3">
-          <Field label={`Your cost per ${baseUnit || 'unit'}`} hint="What you paid. Updated when you restock.">
+          <Field label={`Your cost per ${baseUnit || 'unit'}`} hint="What you paid. Restocking averages in the new price.">
             <PesoInput value={cost} onChange={(e) => setCost(e.target.value)} />
           </Field>
           <Field label="Warn when stock is at or below">

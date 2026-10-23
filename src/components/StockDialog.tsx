@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState, type FormEvent } from 'react';
 import { db, type Product, type StockReason } from '../db/schema';
-import { adjustStock, restock } from '../lib/inventory';
+import { adjustStock, averageCost, restock } from '../lib/inventory';
 import { formatDateTime } from '../lib/format';
 import { formatPeso, parsePeso } from '../lib/money';
 import { Modal } from './Modal';
@@ -108,8 +108,11 @@ export function StockDialog({ product, onClose, onSaved }: { product: Product; o
                 Adds <strong>{qtyBase} {base}</strong> → new stock {product.stock + qtyBase} {base}
                 {paidValue ? (
                   <>
-                    {' '}
-                    · cost {formatPeso(paidValue / qtyBase)} per {base}
+                    <br />
+                    This batch: {formatPeso(paidValue / qtyBase)} per {base}. Your cost becomes{' '}
+                    <strong>{formatPeso(averageCost(product.stock, product.costPerBase, qtyBase, paidValue))}</strong> per{' '}
+                    {base}
+                    {product.stock > 0 && ` (average with the ${product.stock} ${base} you have at ${formatPeso(product.costPerBase)})`}.
                   </>
                 ) : null}
               </p>

@@ -84,8 +84,19 @@ export async function saveProduct(
 }
 
 /**
+ * Cost per base unit after buying `qtyBase` more for `totalCost`: the average
+ * of the stock on hand (at its old cost) and the new batch, so profit stays
+ * right when supplier prices go up and down. Stock at or below zero has no
+ * value left, so then it's just the new batch's price.
+ */
+export function averageCost(stock: number, oldCost: number, qtyBase: number, totalCost: number): number {
+  if (stock <= 0) return totalCost / qtyBase;
+  return (stock * oldCost + totalCost) / (stock + qtyBase);
+}
+
+/**
  * Adds stock. If totalCost (centavos paid for the whole batch) is given,
- * the product's cost becomes the latest price paid per base unit.
+ * the product's cost becomes the average of the old stock and the new batch.
  */
 export async function restock(
   productId: number,
@@ -102,7 +113,7 @@ export async function restock(
     const product = await db.products.get(productId);
     if (!product) throw new InventoryError('Product not found.');
     const changes: Partial<Product> = { stock: product.stock + qtyBase };
-    if (totalCost !== undefined) changes.costPerBase = totalCost / qtyBase;
+    if (totalCost !== undefined) changes.costPerBase = averageCost(product.stock, product.costPerBase, qtyBase, totalCost);
     await db.products.update(productId, changes);
     await db.stockMoves.add({ productId, delta: qtyBase, reason: 'restock', note, createdAt: now });
   });
