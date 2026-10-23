@@ -20,11 +20,13 @@ interface UnitRow {
 export function ProductFormDialog({
   product,
   categories,
+  suppliers,
   onClose,
   onSaved,
 }: {
   product?: Product;
   categories: string[];
+  suppliers: string[];
   onClose: () => void;
   onSaved: (name: string) => void;
 }) {
@@ -36,6 +38,7 @@ export function ProductFormDialog({
   const [lowStockAt, setLowStockAt] = useState(String(product?.lowStockAt ?? 5));
   const [openingStock, setOpeningStock] = useState('');
   const [barcode, setBarcode] = useState(product?.barcode ?? '');
+  const [supplier, setSupplier] = useState(product?.supplier ?? '');
   const [image, setImage] = useState(product?.image);
   const [active, setActive] = useState(product?.active ?? true);
   const [units, setUnits] = useState<UnitRow[]>(
@@ -82,6 +85,7 @@ export function ProductFormDialog({
           lowStockAt: Number(lowStockAt),
           units: parsedUnits.map((u) => ({ ...u, price: u.price! })),
           barcode,
+          supplier,
           image,
           active,
         },
@@ -245,6 +249,15 @@ export function ProductFormDialog({
             </Field>
           )}
         </div>
+
+        <Field label="Supplier (optional)" hint="Where you buy it. The buying list groups items by supplier.">
+          <Input value={supplier} onChange={(e) => setSupplier(e.target.value)} list="suppliers" placeholder="e.g. Puregold, Alfamart, ahente" />
+          <datalist id="suppliers">
+            {suppliers.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+        </Field>
 
         <BarcodeField value={barcode} onChange={setBarcode} />
 

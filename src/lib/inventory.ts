@@ -10,6 +10,7 @@ export interface ProductInput {
   costPerBase: number;
   units: SellUnit[];
   barcode?: string;
+  supplier?: string;
   image?: string;
   active: boolean;
 }
@@ -33,6 +34,7 @@ export function validateProduct(p: ProductInput): string | null {
 
 function normalize(p: ProductInput): ProductInput {
   const barcode = p.barcode?.trim();
+  const supplier = p.supplier?.trim();
   return {
     ...p,
     name: p.name.trim(),
@@ -40,6 +42,7 @@ function normalize(p: ProductInput): ProductInput {
     baseUnit: p.baseUnit.trim(),
     units: p.units.map((u) => ({ ...u, name: u.name.trim() })),
     barcode: barcode ? barcode : undefined,
+    supplier: supplier ? supplier : undefined,
   };
 }
 

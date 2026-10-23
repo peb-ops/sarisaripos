@@ -140,7 +140,7 @@ export function CheckoutDialog({
   );
 }
 
-function CustomerPicker({
+export function CustomerPicker({
   total,
   selected,
   onSelect,
@@ -204,7 +204,7 @@ function CustomerPicker({
       <ErrorText>{error}</ErrorText>
       {chosen && (
         <div className="rounded-xl bg-stone-100 p-3 text-sm">
-          <strong>{chosen.name}</strong> owes {formatPeso(balance)} now → <strong>{formatPeso(after)}</strong> after this sale.
+          <strong>{chosen.name}</strong> owes {formatPeso(balance)} now → <strong>{formatPeso(after)}</strong> after this.
           {overLimit && (
             <div className="mt-2 flex items-center gap-2 font-semibold text-amber-800">
               <TriangleAlert size={16} /> Over their credit limit of {formatPeso(chosen.creditLimit!)}

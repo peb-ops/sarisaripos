@@ -32,7 +32,7 @@ export async function checkout(input: CheckoutInput): Promise<Sale> {
   const { lines, payment, now = Date.now() } = input;
   if (lines.length === 0) throw new SaleError('Cart is empty.');
 
-  return db.transaction('rw', [db.products, db.customers, db.sales, db.ledger, db.stockMoves], async () => {
+  return db.transaction('rw', [db.products, db.customers, db.sales, db.ledger, db.stockMoves, db.walletMoves], async () => {
     const items: SaleItem[] = [];
     const stockDelta = new Map<number, number>();
 
@@ -79,15 +79,18 @@ export async function checkout(input: CheckoutInput): Promise<Sale> {
 
     if (payment === 'utang') {
       await db.ledger.add({ customerId: sale.customerId!, type: 'charge', amount: total, saleId, createdAt: now });
+    } else if (payment === 'gcash') {
+      // The customer paid into the store's GCash wallet.
+      await db.walletMoves.add({ wallet: 'gcash', delta: total, reason: 'sale', saleId, createdAt: now });
     }
 
     return { ...sale, id: saleId };
   });
 }
 
-/** Cancels a sale: puts the stock back and cancels any utang it created. */
+/** Cancels a sale: puts the stock back and cancels any utang or GCash wallet change it made. */
 export async function voidSale(saleId: number, now = Date.now()): Promise<void> {
-  await db.transaction('rw', [db.products, db.sales, db.ledger, db.stockMoves], async () => {
+  await db.transaction('rw', [db.products, db.sales, db.ledger, db.stockMoves, db.walletMoves], async () => {
     const sale = await db.sales.get(saleId);
     if (!sale) throw new SaleError('Sale not found.');
     if (sale.voidedAt) throw new SaleError('This sale is already voided.');
@@ -114,6 +117,8 @@ export async function voidSale(saleId: number, now = Date.now()): Promise<void> 
         note: `Voided sale #${saleId}`,
         createdAt: now,
       });
+    } else if (sale.payment === 'gcash') {
+      await db.walletMoves.add({ wallet: 'gcash', delta: -sale.total, reason: 'void', saleId, createdAt: now });
     }
   });
 }

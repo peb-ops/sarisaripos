@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { HandCoins, NotebookPen, Pencil, Search, UserPlus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { ExportMenu } from '../components/ExportMenu';
 import { Modal } from '../components/Modal';
 import { useToast } from '../components/Toast';
@@ -109,7 +109,7 @@ export default function Utang() {
   );
 }
 
-const TYPE_LABEL: Record<LedgerType, string> = { charge: 'Bought on utang', payment: 'Paid', void: 'Sale voided' };
+const TYPE_LABEL: Record<LedgerType, string> = { charge: 'Bought on utang', payment: 'Paid', void: 'Voided' };
 
 function CustomerDetail({ customerId, balance }: { customerId: number; balance: number }) {
   const toast = useToast();

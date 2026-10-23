@@ -13,6 +13,7 @@ import { exportCsv, exportExcel } from '../lib/exportFiles';
 import { formatPeso } from '../lib/money';
 import { bestSellers, dailySeries, lowStock, rangeStart, summarize, type DayPoint, type Range } from '../lib/reports';
 import { voidSale } from '../lib/sales';
+import { summarizeServices } from '../lib/services';
 
 const RANGES: { id: Range; label: string }[] = [
   { id: 'today', label: 'Today' },
@@ -32,6 +33,7 @@ export default function Reports() {
   const start = rangeStart(range);
 
   const sales = useLiveQuery(() => db.sales.where('createdAt').aboveOrEqual(start).reverse().toArray(), [start]);
+  const services = useLiveQuery(() => db.services.where('createdAt').aboveOrEqual(start).toArray(), [start]);
   const products = useProducts() ?? [];
   const customers = useCustomers() ?? [];
   const balances = useBalances() ?? new Map<number, number>();
@@ -39,6 +41,7 @@ export default function Reports() {
   if (!sales) return null;
 
   const summary = summarize(sales);
+  const serviceSummary = summarizeServices(services ?? []);
   const series = dailySeries(sales, start);
   const top = bestSellers(sales);
   const low = lowStock(products);
@@ -69,7 +72,7 @@ export default function Reports() {
         />
       </PageHeader>
 
-      <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-5">
         <Stat label="Sales" value={formatPeso(summary.revenue)} sub={`${summary.count} transaction${summary.count === 1 ? '' : 's'}`} />
         <Stat
           label="Gross profit"
@@ -82,6 +85,11 @@ export default function Reports() {
           sub={`Cash ${formatPeso(summary.byPayment.cash)} · GCash ${formatPeso(summary.byPayment.gcash)}`}
         />
         <Stat label="Sold on utang" value={formatPeso(summary.byPayment.utang)} sub={`All customers owe ${formatPeso(owed)}`} />
+        <Stat
+          label="Load & GCash earned"
+          value={formatPeso(serviceSummary.income)}
+          sub={`${serviceSummary.count} service${serviceSummary.count === 1 ? '' : 's'} · fees and markups`}
+        />
       </div>
 
       {range !== 'today' && (

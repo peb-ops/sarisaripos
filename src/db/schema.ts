@@ -24,6 +24,8 @@ export interface Product {
   costPerBase: number;
   units: SellUnit[];
   barcode?: string;
+  /** Where the owner buys it (for the buying list). */
+  supplier?: string;
   /** Small JPEG data URL. */
   image?: string;
   active: boolean;
@@ -75,6 +77,8 @@ export interface LedgerEntry {
   type: LedgerType;
   amount: number;
   saleId?: number;
+  /** Set for e-load taken on utang. */
+  serviceId?: number;
   note?: string;
   createdAt: number;
 }
@@ -91,6 +95,40 @@ export interface StockMove {
   createdAt: number;
 }
 
+/** Services the store does with its load / GCash wallets instead of stock. */
+export type ServiceKind = 'eload' | 'cashin' | 'cashout' | 'bills';
+export type WalletId = 'load' | 'gcash';
+
+export interface Service {
+  id?: number;
+  createdAt: number;
+  kind: ServiceKind;
+  /** Load value, GCash amount sent or received, or bill amount. */
+  amount: number;
+  /** What the store earns: the e-load markup or the service fee. */
+  fee: number;
+  /** Only e-load can be taken on utang. */
+  payment: 'cash' | 'utang';
+  customerId?: number;
+  /** Phone number, biller and account number, or reference number. */
+  details?: string;
+  voidedAt?: number;
+}
+
+/** sale = a product sale paid by GCash. */
+export type WalletReason = 'service' | 'sale' | 'topup' | 'adjust' | 'void';
+
+export interface WalletMove {
+  id?: number;
+  wallet: WalletId;
+  delta: number;
+  reason: WalletReason;
+  serviceId?: number;
+  saleId?: number;
+  note?: string;
+  createdAt: number;
+}
+
 export interface Setting {
   key: string;
   value: unknown;
@@ -102,19 +140,34 @@ export type PosDB = Dexie & {
   sales: EntityTable<Sale, 'id'>;
   ledger: EntityTable<LedgerEntry, 'id'>;
   stockMoves: EntityTable<StockMove, 'id'>;
+  services: EntityTable<Service, 'id'>;
+  walletMoves: EntityTable<WalletMove, 'id'>;
   settings: EntityTable<Setting, 'key'>;
+};
+
+// Database versions. Never edit a version that has shipped: stores already
+// on store computers were created with it. To change the schema, add a new
+// version below (with an upgrade() if existing rows need changing) and a test
+// in migrations.test.ts that opens a database made by the previous version.
+export const SCHEMA_V1 = {
+  products: '++id, name, category, barcode',
+  customers: '++id, name',
+  sales: '++id, createdAt, customerId',
+  ledger: '++id, customerId, createdAt, saleId',
+  stockMoves: '++id, productId, createdAt',
+  settings: 'key',
+};
+
+/** v2 (app 0.2): load / GCash services and their wallets. */
+export const SCHEMA_V2 = {
+  services: '++id, createdAt, kind, customerId',
+  walletMoves: '++id, wallet, createdAt, serviceId',
 };
 
 export function createDb(name = 'sari-sari-pos'): PosDB {
   const db = new Dexie(name) as PosDB;
-  db.version(1).stores({
-    products: '++id, name, category, barcode',
-    customers: '++id, name',
-    sales: '++id, createdAt, customerId',
-    ledger: '++id, customerId, createdAt, saleId',
-    stockMoves: '++id, productId, createdAt',
-    settings: 'key',
-  });
+  db.version(1).stores(SCHEMA_V1);
+  db.version(2).stores(SCHEMA_V2);
   return db;
 }
 

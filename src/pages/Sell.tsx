@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { Minus, PackageOpen, Plus, Search, ShoppingCart, Trash2, TriangleAlert } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { CheckoutDialog } from '../components/CheckoutDialog';
 import { Modal } from '../components/Modal';
 import { ProductThumb } from '../components/ProductThumb';

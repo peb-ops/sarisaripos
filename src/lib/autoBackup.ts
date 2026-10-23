@@ -58,9 +58,10 @@ export function createAutoBackup(send: SendBackup, delayMs = 3000) {
     }
   }
 
+  // Saves at most delayMs after the first unsaved change. (Restarting the
+  // timer on every change would never save while sales keep coming.)
   function schedule() {
-    if (disabled) return;
-    if (timer) clearTimeout(timer);
+    if (disabled || timer) return;
     timer = setTimeout(run, delayMs);
   }
 

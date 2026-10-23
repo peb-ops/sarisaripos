@@ -1,19 +1,25 @@
-import { BarChart3, NotebookPen, Package, Settings as SettingsIcon, ShoppingCart, Store } from 'lucide-react';
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { BarChart3, NotebookPen, Package, Settings as SettingsIcon, ShoppingCart, Smartphone, Store } from 'lucide-react';
+import { Suspense, lazy } from 'react';
+import { NavLink, Route, Routes } from 'react-router';
 import { ToastProvider } from './components/Toast';
 import { useProducts, useSetting } from './hooks';
 import { lowStock } from './lib/reports';
-import Products from './pages/Products';
-import Reports from './pages/Reports';
 import Sell from './pages/Sell';
-import Settings from './pages/Settings';
-import Utang from './pages/Utang';
 import { CartProvider } from './state/cart';
+
+// Sell is the first screen, so it's in the main bundle. The others load when
+// first opened (Reports brings the chart library), so the app starts faster.
+const Products = lazy(() => import('./pages/Products'));
+const Utang = lazy(() => import('./pages/Utang'));
+const Services = lazy(() => import('./pages/Services'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Settings = lazy(() => import('./pages/Settings'));
 
 const NAV = [
   { to: '/', label: 'Sell', sub: 'Benta', icon: ShoppingCart, end: true },
   { to: '/products', label: 'Products', sub: 'Paninda', icon: Package },
   { to: '/utang', label: 'Utang', sub: 'Listahan', icon: NotebookPen },
+  { to: '/services', label: 'Load & GCash', sub: 'E-load, bills', icon: Smartphone },
   { to: '/reports', label: 'Reports', sub: 'Ulat', icon: BarChart3 },
   { to: '/settings', label: 'Settings', sub: '', icon: SettingsIcon },
 ];
@@ -65,14 +71,17 @@ export default function App() {
             </ul>
           </nav>
           <main className="min-w-0 flex-1 overflow-hidden">
-            <Routes>
-              <Route path="/" element={<Sell />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/utang" element={<Utang />} />
-              <Route path="/utang/:customerId" element={<Utang />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/settings" element={<Settings />} />
-            </Routes>
+            <Suspense fallback={null}>
+              <Routes>
+                <Route path="/" element={<Sell />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/utang" element={<Utang />} />
+                <Route path="/utang/:customerId" element={<Utang />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/services" element={<Services />} />
+                <Route path="/settings" element={<Settings />} />
+              </Routes>
+            </Suspense>
           </main>
         </div>
       </CartProvider>

@@ -5,6 +5,7 @@ import { toCsv } from './csv';
 import { collectTables, type Table } from './exportData';
 import { recordPayment, saveCustomer } from './ledger';
 import { checkout, voidSale } from './sales';
+import { recordService, topUpWallet } from './services';
 import { toXlsx } from './xlsx';
 
 beforeEach(resetDb);
@@ -26,7 +27,7 @@ describe('export tables', () => {
   it('builds every sheet for "all"', async () => {
     await seedStore();
     const tables = await collectTables('all');
-    expect(tables.map((t) => t.name)).toEqual(['Products', 'Sales', 'Sale items', 'Customers', 'Utang history']);
+    expect(tables.map((t) => t.name)).toEqual(['Products', 'Sales', 'Sale items', 'Customers', 'Utang history', 'Load & GCash', 'Wallet history']);
   });
 
   it('converts money to pesos and keeps voided sales marked', async () => {
@@ -65,6 +66,24 @@ describe('export tables', () => {
   });
 });
 
+describe('services export', () => {
+  it('lists services with cash effect and a running wallet balance', async () => {
+    await topUpWallet('gcash', 100000, 'Starting balance', 1000);
+    await recordService({ kind: 'cashout', amount: 50000, fee: 1000, now: 2000 });
+    await recordService({ kind: 'eload', amount: 5000, fee: 200, now: 3000 });
+    const [services, wallet] = await collectTables('services');
+    expect(services.rows.map((r) => [r[col(services, 'Service')], r[col(services, 'Cash in (+) / out (−)')]])).toEqual([
+      ['GCash cash-out', -490],
+      ['E-load', 52],
+    ]);
+    expect(wallet.rows.map((r) => [r[col(wallet, 'Wallet')], r[col(wallet, 'Balance after')]])).toEqual([
+      ['GCash wallet', 1000],
+      ['GCash wallet', 1500],
+      ['Load wallet', -50],
+    ]);
+  });
+});
+
 describe('csv', () => {
   const table: Table = {
     name: 'T',
@@ -99,8 +118,8 @@ describe('xlsx', () => {
     const blob = await toXlsx(await collectTables('all'));
     const files = unzipSync(new Uint8Array(await blob.arrayBuffer()));
     const workbook = strFromU8(files['xl/workbook.xml']);
-    for (const name of ['Products', 'Sales', 'Sale items', 'Customers', 'Utang history']) {
-      expect(workbook).toContain(`name="${name}"`);
+    for (const name of ['Products', 'Sales', 'Sale items', 'Customers', 'Utang history', 'Load & GCash', 'Wallet history']) {
+      expect(workbook).toContain(`name="${name.replace('&', '&amp;')}"`);
     }
     expect(strFromU8(files['xl/styles.xml'])).toContain('&quot;₱&quot;#,##0.00');
   });

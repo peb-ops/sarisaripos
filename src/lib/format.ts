@@ -25,3 +25,14 @@ export function itemsSummary(items: { qty: number; name: string; unitName: strin
   if (items.length > max) parts.push(`+${items.length - max} more`);
   return parts.join(', ');
 }
+
+/** "Thu, Oct 23, 3:05 PM" */
+export function formatDayTime(ts: number): string {
+  return new Date(ts).toLocaleString('en-PH', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}

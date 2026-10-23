@@ -1,5 +1,6 @@
-import { Archive, PackagePlus, Pencil, Search, TriangleAlert, Warehouse } from 'lucide-react';
+import { Archive, ClipboardList, PackagePlus, Pencil, Search, TriangleAlert, Warehouse } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { BuyingListDialog } from '../components/BuyingListDialog';
 import { ExportMenu } from '../components/ExportMenu';
 import { ProductFormDialog } from '../components/ProductFormDialog';
 import { ProductThumb } from '../components/ProductThumb';
@@ -22,9 +23,11 @@ export default function Products() {
   const [filter, setFilter] = useState<Filter>('all');
   const [editing, setEditing] = useState<Product | 'new' | null>(null);
   const [stockFor, setStockFor] = useState<Product | null>(null);
+  const [buying, setBuying] = useState(false);
 
   const all = products ?? [];
   const categories = useMemo(() => [...new Set(all.map((p) => p.category))].sort(), [all]);
+  const suppliers = useMemo(() => [...new Set(all.flatMap((p) => (p.supplier ? [p.supplier] : [])))].sort(), [all]);
   const lowCount = all.filter((p) => p.active && isLowStock(p)).length;
   const archivedCount = all.filter((p) => !p.active).length;
 
@@ -44,6 +47,9 @@ export default function Products() {
             { label: 'Products & stock (CSV)', format: 'csv', run: () => exportCsv('products') },
           ]}
         />
+        <Button size="sm" onClick={() => setBuying(true)}>
+          <ClipboardList size={16} /> Buying list{lowCount > 0 && ` (${lowCount})`}
+        </Button>
         <Button variant="primary" onClick={() => setEditing('new')}>
           <PackagePlus size={18} /> Add product
         </Button>
@@ -170,6 +176,7 @@ export default function Products() {
         <ProductFormDialog
           product={editing === 'new' ? undefined : editing}
           categories={categories}
+          suppliers={suppliers}
           onClose={() => setEditing(null)}
           onSaved={(name) => {
             setEditing(null);
@@ -177,6 +184,7 @@ export default function Products() {
           }}
         />
       )}
+      {buying && <BuyingListDialog products={all} onClose={() => setBuying(false)} />}
       {stockFor && (
         <StockDialog
           product={stockFor}

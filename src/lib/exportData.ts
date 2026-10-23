@@ -1,10 +1,22 @@
-import { db, type Customer, type LedgerEntry, type LedgerType, type PaymentType, type Product, type Sale } from '../db/schema';
+import {
+  db,
+  type Customer,
+  type LedgerEntry,
+  type LedgerType,
+  type PaymentType,
+  type Product,
+  type Sale,
+  type Service,
+  type WalletMove,
+  type WalletReason,
+} from '../db/schema';
 import { itemsSummary } from './format';
 import { isLowStock } from './inventory';
 import { signedAmount } from './ledger';
 import { formatPeso } from './money';
 import { saleCost } from './reports';
 import { lineTotal } from './sales';
+import { SERVICES, WALLET_LABEL, cashEffect } from './services';
 
 // Turns store records into plain tables for CSV / Excel export.
 // Money is converted from centavos to pesos (123.45).
@@ -28,7 +40,8 @@ export interface Table {
 
 const pesos = (centavos: number) => Math.round(centavos) / 100;
 const PAYMENT: Record<PaymentType, string> = { cash: 'Cash', gcash: 'GCash', utang: 'Utang' };
-const LEDGER_TYPE: Record<LedgerType, string> = { charge: 'Bought on utang', payment: 'Paid', void: 'Sale voided' };
+const LEDGER_TYPE: Record<LedgerType, string> = { charge: 'Bought on utang', payment: 'Paid', void: 'Voided' };
+const WALLET_REASON: Record<WalletReason, string> = { service: 'Service', sale: 'Product sale (GCash)', topup: 'Top up', adjust: 'Balance corrected', void: 'Voided' };
 
 export function productsTable(products: Product[]): Table {
   return {
@@ -43,6 +56,7 @@ export function productsTable(products: Product[]): Table {
       { header: 'Low-stock level', type: 'number', width: 9 },
       { header: 'Low stock?', type: 'text', width: 9 },
       { header: 'Barcode', type: 'text', width: 16 },
+      { header: 'Supplier', type: 'text', width: 16 },
       { header: 'Status', type: 'text', width: 10 },
     ],
     rows: [...products]
@@ -57,6 +71,7 @@ export function productsTable(products: Product[]): Table {
         p.lowStockAt,
         p.active && isLowStock(p) ? 'Yes' : 'No',
         p.barcode ?? null,
+        p.supplier ?? null,
         p.active ? 'For sale' : 'Archived',
       ]),
   };
@@ -192,14 +207,83 @@ export function ledgerTable(entries: LedgerEntry[], customers: Customer[]): Tabl
   };
 }
 
-export type ExportKind = 'products' | 'sales' | 'utang' | 'all';
+export function servicesTable(services: Service[], customers: Customer[]): Table {
+  const names = new Map(customers.map((c) => [c.id!, c.name]));
+  return {
+    name: 'Load & GCash',
+    columns: [
+      { header: '#', type: 'number', width: 7 },
+      { header: 'Date', type: 'datetime', width: 17 },
+      { header: 'Service', type: 'text', width: 15 },
+      { header: 'Amount', type: 'money', width: 11 },
+      { header: 'Fee / markup', type: 'money', width: 11 },
+      { header: 'Cash in (+) / out (−)', type: 'money', width: 13 },
+      { header: 'Payment', type: 'text', width: 9 },
+      { header: 'Customer', type: 'text', width: 18 },
+      { header: 'Details', type: 'text', width: 24 },
+      { header: 'Status', type: 'text', width: 9 },
+    ],
+    rows: [...services]
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .map((s) => [
+        s.id ?? null,
+        new Date(s.createdAt),
+        SERVICES[s.kind].label,
+        pesos(s.amount),
+        pesos(s.fee),
+        pesos(cashEffect(s)),
+        s.payment === 'utang' ? 'Utang' : 'Cash',
+        s.customerId !== undefined ? names.get(s.customerId) ?? '(deleted customer)' : null,
+        s.details ?? null,
+        s.voidedAt ? 'Voided' : 'OK',
+      ]),
+  };
+}
+
+/** Every wallet change with the wallet's balance after it. */
+export function walletTable(moves: WalletMove[]): Table {
+  const running = new Map<string, number>();
+  return {
+    name: 'Wallet history',
+    columns: [
+      { header: 'Date', type: 'datetime', width: 17 },
+      { header: 'Wallet', type: 'text', width: 14 },
+      { header: 'What', type: 'text', width: 16 },
+      { header: 'Change', type: 'money', width: 11 },
+      { header: 'Balance after', type: 'money', width: 12 },
+      { header: 'Service #', type: 'number', width: 9 },
+      { header: 'Sale #', type: 'number', width: 8 },
+      { header: 'Note', type: 'text', width: 24 },
+    ],
+    rows: [...moves]
+      .sort((a, b) => a.createdAt - b.createdAt || (a.id ?? 0) - (b.id ?? 0))
+      .map((m) => {
+        const balance = (running.get(m.wallet) ?? 0) + m.delta;
+        running.set(m.wallet, balance);
+        return [
+          new Date(m.createdAt),
+          WALLET_LABEL[m.wallet],
+          WALLET_REASON[m.reason],
+          pesos(m.delta),
+          pesos(balance),
+          m.serviceId ?? null,
+          m.saleId ?? null,
+          m.note ?? null,
+        ];
+      }),
+  };
+}
+
+export type ExportKind = 'products' | 'sales' | 'utang' | 'services' | 'all';
 
 /** Loads the records for an export. `since` limits sales to a date range. */
 export async function collectTables(kind: ExportKind, since?: number): Promise<Table[]> {
   const sales = () =>
     since === undefined ? db.sales.toArray() : db.sales.where('createdAt').aboveOrEqual(since).toArray();
+  const services = () =>
+    since === undefined ? db.services.toArray() : db.services.where('createdAt').aboveOrEqual(since).toArray();
 
-  return db.transaction('r', [db.products, db.sales, db.customers, db.ledger], async () => {
+  return db.transaction('r', [db.products, db.sales, db.customers, db.ledger, db.services, db.walletMoves], async () => {
     switch (kind) {
       case 'products':
         return [productsTable(await db.products.toArray())];
@@ -211,12 +295,18 @@ export async function collectTables(kind: ExportKind, since?: number): Promise<T
         const [customers, entries] = await Promise.all([db.customers.toArray(), db.ledger.toArray()]);
         return [customersTable(customers, entries), ledgerTable(entries, customers)];
       }
+      case 'services': {
+        const [s, customers, moves] = await Promise.all([services(), db.customers.toArray(), db.walletMoves.toArray()]);
+        return [servicesTable(s, customers), walletTable(moves)];
+      }
       case 'all': {
-        const [products, s, customers, entries] = await Promise.all([
+        const [products, s, customers, entries, svc, moves] = await Promise.all([
           db.products.toArray(),
           sales(),
           db.customers.toArray(),
           db.ledger.toArray(),
+          services(),
+          db.walletMoves.toArray(),
         ]);
         return [
           productsTable(products),
@@ -224,6 +314,8 @@ export async function collectTables(kind: ExportKind, since?: number): Promise<T
           saleItemsTable(s),
           customersTable(customers, entries),
           ledgerTable(entries, customers),
+          servicesTable(svc, customers),
+          walletTable(moves),
         ];
       }
     }

@@ -1,17 +1,44 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Download, FileSpreadsheet, FolderArchive, HardDrive, Keyboard, PackageOpen, ScanBarcode, Store, Upload } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import {
+  Download,
+  FileSpreadsheet,
+  FolderArchive,
+  HardDrive,
+  History,
+  Keyboard,
+  PackageOpen,
+  ScanBarcode,
+  Smartphone,
+  Store,
+  Upload,
+} from 'lucide-react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ConfirmDialog } from '../components/Modal';
 import { useToast } from '../components/Toast';
-import { Button, Card, Field, Input, PageHeader, errorMessage } from '../components/ui';
+import { Button, Card, ErrorText, Field, Input, PageHeader, PesoInput, errorMessage } from '../components/ui';
 import { db } from '../db/schema';
 import { seedDemoData } from '../db/seed';
-import { useAutoBackupStatus, useFlag, useSetting } from '../hooks';
+import { useAutoBackupStatus, useFlag, useServiceFees, useSetting } from '../hooks';
 import { exportCsv, exportExcel } from '../lib/exportFiles';
 import { setFlag } from '../lib/featureFlags';
-import { downloadJson, exportBackup, parseBackup, restoreBackup, type Backup } from '../lib/backup';
-import { daysAgo, formatDate, formatDateTime } from '../lib/format';
+import { downloadJson, exportBackup, parseBackup, type Backup } from '../lib/backup';
+import { daysAgo, formatDate, formatDateTime, formatDayTime } from '../lib/format';
+import {
+  fetchLocalBackup,
+  listLocalBackups,
+  restoreWithSafetyCopy,
+  type LocalBackup,
+  type LocalBackupKind,
+} from '../lib/localBackups';
+import { formatPeso, parsePeso, pesoInputValue } from '../lib/money';
+import type { ServiceFees } from '../lib/services';
 import { setSetting } from '../lib/settings';
+
+const BACKUP_KIND: Record<LocalBackupKind, string> = {
+  auto: 'Automatic backup (latest of that day)',
+  'before-update': 'Saved before an update',
+  'before-restore': 'Your records just before a restore',
+};
 
 export default function Settings() {
   const toast = useToast();
@@ -24,6 +51,25 @@ export default function Settings() {
   const auto = useAutoBackupStatus();
   const barcodeOn = useFlag('barcode');
   const [exporting, setExporting] = useState(false);
+  const [saved, setSaved] = useState<LocalBackup[] | null>(null);
+  const [showAllSaved, setShowAllSaved] = useState(false);
+  const [opening, setOpening] = useState<string | null>(null);
+
+  // Refresh the list whenever a new automatic backup lands.
+  useEffect(() => {
+    listLocalBackups().then(setSaved, () => setSaved(null));
+  }, [auto.savedAt]);
+
+  async function openLocal(b: LocalBackup) {
+    setOpening(b.id);
+    try {
+      setPending(await fetchLocalBackup(b.id));
+    } catch (err) {
+      toast(errorMessage(err), 'error');
+    } finally {
+      setOpening(null);
+    }
+  }
 
   async function runExport(run: () => Promise<void>) {
     setExporting(true);
@@ -122,6 +168,31 @@ export default function Settings() {
               }}
             />
           </div>
+          {saved && saved.length > 0 && (
+            <div className="mt-5">
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-stone-700">
+                <History size={16} /> Backups saved on this computer
+              </h3>
+              <ul className="divide-y divide-stone-100 rounded-xl border border-stone-200">
+                {(showAllSaved ? saved : saved.slice(0, 5)).map((b) => (
+                  <li key={b.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                    <div>
+                      <div className="font-medium">{formatDayTime(b.modified)}</div>
+                      <div className="text-xs text-stone-500">{BACKUP_KIND[b.kind]}</div>
+                    </div>
+                    <Button size="sm" disabled={opening !== null} onClick={() => openLocal(b)}>
+                      Restore…
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+              {saved.length > 5 && (
+                <Button size="sm" variant="ghost" className="mt-2" onClick={() => setShowAllSaved((v) => !v)}>
+                  {showAllSaved ? 'Show fewer' : `Show all ${saved.length}`}
+                </Button>
+              )}
+            </div>
+          )}
           {persisted === false && (
             <p className="mt-4 text-xs text-stone-500">
               Tip: install this app (the install icon in the browser's address bar) so the browser keeps its data safe.
@@ -131,8 +202,8 @@ export default function Settings() {
 
         <Section icon={<FileSpreadsheet size={20} />} title="Export data">
           <p className="mb-3 text-sm text-stone-600">
-            Download all records (products, sales, items sold, customers, utang) to open in Excel or Google Sheets.
-            Products, Reports and Utang also have their own Export button.
+            Download all records (products, sales, items sold, customers, utang, load &amp; GCash) to open in Excel or
+            Google Sheets. Products, Reports, Utang and Load &amp; GCash also have their own Export button.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button variant="primary" disabled={exporting} onClick={() => runExport(() => exportExcel('all'))}>
@@ -142,6 +213,10 @@ export default function Settings() {
               <FolderArchive size={18} /> Export all (CSV files)
             </Button>
           </div>
+        </Section>
+
+        <Section icon={<Smartphone size={20} />} title="Load & GCash fees">
+          <FeesForm />
         </Section>
 
         <Section icon={<ScanBarcode size={20} />} title="Barcode scanner">
@@ -208,15 +283,21 @@ export default function Settings() {
             <>
               <p>
                 Backup from <strong>{formatDate(pending.exportedAt)}</strong> with {pending.data.products.length} products,{' '}
-                {pending.data.sales.length} sales and {pending.data.customers.length} customers.
+                {pending.data.sales.length} sales, {pending.data.services.length} load &amp; GCash and{' '}
+                {pending.data.customers.length} customers.
               </p>
               <p className="mt-2 font-semibold text-red-700">All current data on this computer will be replaced.</p>
+              {auto.available !== false && (
+                <p className="mt-2 text-sm text-stone-500">
+                  A copy of your current records is saved first, so you can undo this from the backup list.
+                </p>
+              )}
             </>
           }
           onClose={() => setPending(null)}
           onConfirm={async () => {
             try {
-              await restoreBackup(pending);
+              await restoreWithSafetyCopy(pending);
               toast('Backup restored');
             } catch (err) {
               toast(errorMessage(err), 'error');
@@ -226,6 +307,49 @@ export default function Settings() {
         />
       )}
     </div>
+  );
+}
+
+/** Default fees filled in on the Load & GCash screen (they can still be changed each time). */
+function FeesForm() {
+  const toast = useToast();
+  const fees = useServiceFees();
+  const [form, setForm] = useState<Record<keyof ServiceFees, string> | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (fees && !form)
+      setForm({ eload: pesoInputValue(fees.eload), gcashPer500: pesoInputValue(fees.gcashPer500), bills: pesoInputValue(fees.bills) });
+  }, [fees, form]);
+  if (!form) return null;
+
+  const fields: { key: keyof ServiceFees; label: string; hint: string }[] = [
+    { key: 'eload', label: 'E-load markup', hint: `e.g. ₱50 load sells for ${formatPeso(5000 + (parsePeso(form.eload) ?? 0))}` },
+    { key: 'gcashPer500', label: 'GCash fee per ₱500', hint: 'For cash-in and cash-out, per ₱500 or part of it' },
+    { key: 'bills', label: 'Bills payment fee', hint: 'Per bill' },
+  ];
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    const parsed = Object.fromEntries(fields.map((f) => [f.key, parsePeso(form![f.key])]));
+    if (Object.values(parsed).some((v) => v === null)) return setError('Enter a valid amount for every fee.');
+    setError('');
+    await setSetting('serviceFees', parsed);
+    toast('Fees saved');
+  }
+
+  return (
+    <form onSubmit={save} className="space-y-3">
+      <div className="grid grid-cols-3 gap-3">
+        {fields.map((f) => (
+          <Field key={f.key} label={f.label} hint={f.hint}>
+            <PesoInput value={form[f.key]} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
+          </Field>
+        ))}
+      </div>
+      <ErrorText>{error}</ErrorText>
+      <Button type="submit">Save fees</Button>
+    </form>
   );
 }
 

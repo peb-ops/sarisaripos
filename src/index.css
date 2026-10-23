@@ -23,3 +23,13 @@ input[type='number']::-webkit-outer-spin-button {
 input[type='number'] {
   -moz-appearance: textfield;
 }
+
+/* Printing (e.g. the buying list) prints only what is marked print:block. */
+@media print {
+  #root {
+    display: none;
+  }
+  body {
+    background: white;
+  }
+}
